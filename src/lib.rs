@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use regex::Regex;
 
 pub fn add(left: u64, right: u64) -> u64 {
@@ -6,26 +8,34 @@ pub fn add(left: u64, right: u64) -> u64 {
 
 pub fn is_match(haystack: &str, glob: &str) {}
 
-fn convert_to_regex(pattern: &str) {
-    // https://{meow,purr}.cat.com
-    // (meow|purr)\.cat\.com - valid regex
-    let list_regex = Regex::new(r"\{(?<middle>.*)\}").unwrap();
-    let mut lists = vec![];
-
-    for (_, [middle]) in list_regex.captures_iter(pattern).map(|c| c.extract()) {
-
-    }
-}
-
-enum Primitives {
+enum Primitive {
     Empty,
-    Literal,
+    Literal(String),
     Any,
     Single,
-    List,
-    Range,
+    List(Vec<String>),
+    Range(String),
 }
 
+struct Span {
+    pub start: u32,
+    pub end: u32,
+}
+
+struct Parser {
+    pos: Cell<u32>,
+}
+
+impl Parser {
+    fn to_regex(&self, pattern: &str) {
+        // https://{meow,purr}.cat.com
+        // (meow|purr)\.cat\.com - valid regex
+        let list_regex = Regex::new(r"\{(?<middle>.*)\}").unwrap();
+        let mut lists: Vec<Primitive> = vec![];
+
+        loop {}
+    }
+}
 
 #[cfg(test)]
 mod tests {
