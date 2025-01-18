@@ -1,14 +1,14 @@
 use regex::Regex;
 use std::cell::Cell;
 
-pub fn is_match(haystack: &str, glob: String) -> bool {
+pub fn is_match(haystack: &str, glob: &str) -> bool {
     let mut parser = Parser::new(glob);
     let regex_str = parser.to_regex();
     let regex = Regex::new(&regex_str).unwrap();
     regex.is_match(haystack)
 }
 
-pub fn to_regex(glob: String) -> String {
+pub fn to_regex(glob: &str) -> String {
     let mut parser = Parser::new(glob);
     parser.to_regex()
 }
@@ -31,9 +31,9 @@ struct Parser {
 }
 
 impl Parser {
-    pub fn new(glob: String) -> Parser {
+    pub fn new(glob: &str) -> Parser {
         Parser {
-            source: glob,
+            source: glob.to_string(),
             current: Cell::new(0),
             ast: vec![],
         }
@@ -221,7 +221,7 @@ mod tests {
         ];
 
         for [sample, pattern] in test_gen_map {
-            assert_eq!(is_match(sample, String::from(pattern)), true)
+            assert_eq!(is_match(sample, pattern), true)
         }
     }
 
@@ -234,36 +234,30 @@ mod tests {
 
     #[test]
     fn escape_char_test() {
-        assert_eq!(to_regex(r"meow\?".to_string()), String::from("^meow?$"));
+        assert_eq!(to_regex(r"meow\?"), String::from("^meow?$"));
 
         // assert_eq!("meow\\?".len(), 7)
     }
 
     #[test]
     fn test_range_parsing() {
-        assert_eq!(to_regex("[a-z]*".to_string()), String::from("^[a-z].*$"));
+        assert_eq!(to_regex("[a-z]*"), String::from("^[a-z].*$"));
 
-        assert_eq!(to_regex("[0-9]?".to_string()), String::from("^[0-9].$"));
+        assert_eq!(to_regex("[0-9]?"), String::from("^[0-9].$"));
 
-        assert_eq!(
-            to_regex("file[abc].txt".to_string()),
-            String::from("^file[abc].txt$")
-        );
+        assert_eq!(to_regex("file[abc].txt"), String::from("^file[abc].txt$"));
 
         // Malformed range should panic
-        let result = std::panic::catch_unwind(|| to_regex("[a-z".to_string()));
+        let result = std::panic::catch_unwind(|| to_regex("[a-z"));
         assert!(result.is_err());
     }
 
     #[test]
     fn test_lists() {
         assert_eq!(
-            to_regex(String::from("{super,spider,iron}man")),
+            to_regex("{super,spider,iron}man"),
             "^(?:super|spider|iron)man$"
         );
-        assert_eq!(
-            is_match("superman", String::from("{super,spider,iron}man$")),
-            true
-        )
+        assert_eq!(is_match("superman", "{super,spider,iron}man$"), true)
     }
 }
