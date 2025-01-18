@@ -7,20 +7,34 @@ pub fn add(left: u64, right: u64) -> u64 {
 }
 
 pub fn is_match(haystack: &str, glob: String) -> bool {
-    let parser = Parser::new(glob);
-    let regex = parser.to_regex().unwrap();
+    let mut parser = Parser::new(glob);
+    let regex_str = parser.to_regex();
+    let regex = Regex::new(&regex_str).unwrap();
     regex.is_match(haystack)
 }
 
-enum Primitive {
-    Literal(String),   // a
-    Any,               // *
-    Recursive,         // **
-    Single,            // ?
-    List(Vec<String>), // [ ]
-    Range(String),     // { }
-    Seperator,         // /
+pub fn to_regex(glob: String) -> String {
+    let mut parser = Parser::new(glob);
+    parser.to_regex()
 }
+
+enum Primitive {
+    Literal(String), // a
+    Any,             // *
+    Recursive,       // **
+    Single,          // ?
+                     // Group(Vec<GroupPrimitive>), // { }
+                     // Range(String),              // [ ]
+                     // Seperator,                  // /
+}
+
+// enum GroupPrimitive {
+//     Literal(String), // a
+//     Any,             // *
+//     Recursive,       // **
+//     Single,          // ?
+//     Seperator,       // /
+// }
 
 // struct Span {
 //     pub start: u32,
@@ -31,6 +45,7 @@ struct Parser {
     // start: Cell<usize>,
     current: Cell<usize>,
     source: String,
+    ast: Vec<Primitive>,
 }
 
 impl Parser {
@@ -38,86 +53,103 @@ impl Parser {
         Parser {
             source: glob,
             current: Cell::new(0),
+            ast: vec![],
         }
-    }
-
-    pub fn to_regex(&self) -> Result<Regex, regex::Error> {
-        // https://{meow,purr}.cat.com
-        // (meow|purr)\.cat\.com - valid regex
-        // let list_regex = Regex::new(r"\{(?<middle>.*)\}").unwrap();
-        let mut ast: Vec<Primitive> = vec![];
-
-        loop {
-            if self.is_eol() {
-                break;
-            }
-
-            let c = self.peek();
-
-            match c {
-                '{' => {}
-                '}' => {}
-                '[' => {}
-                '*' => {
-                    ast.push(Primitive::Any);
-                }
-                '?' => {
-                    ast.push(Primitive::Single);
-                }
-                _ => {
-                    // if the previous AST is a literal, then we can combine them
-                    if let Some(Primitive::Literal(literal)) = ast.last() {
-                        let new_ast = Primitive::Literal(format!("{}{}", literal, c));
-                        ast.pop();
-                        ast.push(new_ast);
-                    } else {
-                        // otherwise, we just add the literal
-                        ast.push(Primitive::Literal(c.to_string()));
-                    }
-                }
-            }
-
-            self.advance();
-        }
-
-        let regex = regex_generator(&ast);
-        Regex::new(&regex)
     }
 
     fn is_eol(&self) -> bool {
         self.current.get() >= self.source.len()
     }
 
-    fn peek(&self) -> char {
+    fn char(&self) -> char {
         self.source.chars().nth(self.current.get()).unwrap()
     }
 
     fn advance(&self) {
         self.current.set(self.current.get() + 1);
     }
-}
 
-fn regex_generator(ast: &Vec<Primitive>) -> String {
-    let mut regex_str = String::new();
+    fn peek(&self) -> char {
+        self.source.chars().nth(self.current.get() + 1).unwrap()
+    }
 
-    regex_str.push('^');
-    for primitive in ast {
-        match primitive {
-            Primitive::Single => {
-                regex_str.push('.');
+    pub fn to_regex(&mut self) -> String {
+        // https://{meow,purr}.cat.com
+        // (meow|purr)\.cat\.com - valid regex
+        // let list_regex = Regex::new(r"\{(?<middle>.*)\}").unwrap();
+
+        loop {
+            if self.is_eol() {
+                break;
             }
-            Primitive::Any => {
-                regex_str.push_str(".*");
+
+            match self.char() {
+                '\\' => {
+                    self.advance();
+                    self.parse_literal();
+                }
+                '{' => self.parse_group(),
+                '*' => {
+                    if self.peek() == '*' {
+                        self.advance();
+                        self.ast.push(Primitive::Recursive);
+                    } else {
+                        self.ast.push(Primitive::Any);
+                    }
+                }
+                '?' => {
+                    self.ast.push(Primitive::Single);
+                }
+                _ => self.parse_literal(),
             }
-            Primitive::Literal(str) => {
-                regex_str.push_str(str);
-            }
-            _ => todo!("To be implemented!"),
+
+            self.advance();
+        }
+
+        self.regex_generator()
+    }
+
+    fn parse_literal(&mut self) {
+        let c = self.char();
+        // if the previous AST is a literal, then we can combine them
+        if let Some(Primitive::Literal(literal)) = self.ast.last() {
+            let new_ast = Primitive::Literal(format!("{}{}", literal, c));
+            self.ast.pop();
+            self.ast.push(new_ast);
+        } else {
+            // otherwise, we just add the literal
+            self.ast.push(Primitive::Literal(c.to_string()));
         }
     }
-    regex_str.push('$');
 
-    regex_str
+    fn parse_group(&self) {}
+
+    fn regex_generator(&self) -> String {
+        let mut regex_str = String::new();
+
+        regex_str.push('^');
+        for primitive in &self.ast {
+            match primitive {
+                Primitive::Single => {
+                    regex_str.push('.');
+                }
+                Primitive::Any => {
+                    regex_str.push_str(".*");
+                }
+                Primitive::Recursive => {
+                    regex_str.push_str("(?:.*/)?");
+                }
+                Primitive::Literal(str) => {
+                    regex_str.push_str(&str);
+                } // Primitive::Seperator => {
+                  //     regex_str.push_str(&str);
+                  // }
+            }
+        }
+        regex_str.push('$');
+
+        regex_str
+    }
 }
 
 #[cfg(test)]
@@ -125,8 +157,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
+    fn simple_exp() {
         let result = is_match("world-big-cat", String::from("world-*-cat"));
         assert_eq!(result, true);
+    }
+
+    #[test]
+    fn uri_test() {
+        let result = is_match(
+            "http://google.com/meow/h/ja/ddd/ada/",
+            String::from("*google.com/**"),
+        );
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    fn escape_char_test() {
+        assert_eq!(to_regex(r"meow\?".to_string()), String::from("^meow?$"));
+
+        // assert_eq!("meow\\?".len(), 7)
     }
 }

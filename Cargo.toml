@@ -1,5 +1,5 @@
 [package]
-name = "Uri-Globbing"
+name = "uri_globbing"
 version = "0.1.0"
 edition = "2021"
 
