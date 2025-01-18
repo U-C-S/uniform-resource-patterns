@@ -1,10 +1,5 @@
-use std::cell::Cell;
-
 use regex::Regex;
-
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+use std::cell::Cell;
 
 pub fn is_match(haystack: &str, glob: String) -> bool {
     let mut parser = Parser::new(glob);
@@ -21,18 +16,13 @@ pub fn to_regex(glob: String) -> String {
 type AST = Vec<Primitive>;
 
 enum Primitive {
-    Literal(String), // a
-    Any,             // *
-    Recursive,       // **
-    Single,          // ?
-    List(AST),       // { }
-    Range(String),   // [ ]
+    Literal(String),   // a
+    Any,               // *
+    Recursive,         // **
+    Single,            // ?
+    List(Vec<String>), // { }
+    Range(String),     // [ ]
 }
-
-// struct Span {
-//     pub start: u32,
-//     pub end: u32,
-// }
 
 struct Parser {
     current: Cell<usize>,
@@ -76,7 +66,7 @@ impl Parser {
                     self.advance();
                     self.parse_literal();
                 }
-                '{' => self.parse_group(),
+                '{' => self.parse_list(),
                 '[' => self.parse_range(),
                 '*' => {
                     if self.peek() == Some('*') {
@@ -140,7 +130,44 @@ impl Parser {
         }
     }
 
-    fn parse_group(&self) {}
+    fn parse_list(&mut self) {
+        self.advance();
+
+        let mut list: Vec<String> = vec![];
+        let mut is_valid = false;
+        let mut current_item = String::new();
+
+        loop {
+            if self.is_eol() {
+                break;
+            }
+
+            match self.char() {
+                ',' => {
+                    if !current_item.is_empty() {
+                        list.push(current_item);
+                        current_item = String::new();
+                    }
+                }
+                '}' => {
+                    if !current_item.is_empty() {
+                        list.push(current_item);
+                    }
+                    is_valid = true;
+                    break;
+                }
+                c => current_item = format!("{}{}", current_item, c),
+            }
+
+            self.advance();
+        }
+
+        if is_valid {
+            self.ast.push(Primitive::List(list));
+        } else {
+            panic!("Malformed range: missing closing `]`");
+        }
+    }
 
     fn regex_generator(&self) -> String {
         let mut regex_str = String::new();
@@ -164,6 +191,11 @@ impl Parser {
                     regex_str.push('[');
                     regex_str.push_str(range);
                     regex_str.push(']');
+                }
+                Primitive::List(list) => {
+                    regex_str.push_str("(?:");
+                    regex_str.push_str(&list.join("|"));
+                    regex_str.push(')');
                 }
                 _ => todo!("To be implemented"),
             }
@@ -221,5 +253,17 @@ mod tests {
         // Malformed range should panic
         let result = std::panic::catch_unwind(|| to_regex("[a-z".to_string()));
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_lists() {
+        assert_eq!(
+            to_regex(String::from("{super,spider,iron}man")),
+            "^(?:super|spider|iron)man$"
+        );
+        assert_eq!(
+            is_match("superman", String::from("{super,spider,iron}man$")),
+            true
+        )
     }
 }
