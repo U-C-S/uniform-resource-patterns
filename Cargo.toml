@@ -2,6 +2,9 @@
 name = "uri_globbing"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+repository = "https://github.com/U-C-S/uri-globbing"
+description = "Glob pattern matching for URIs"
 
 [dependencies]
-regex = "1.11"
+regex = "1"
