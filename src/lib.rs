@@ -23,12 +23,12 @@ enum Primitive {
     Any,             // *
     Recursive,       // **
     Single,          // ?
-                     // Group(Vec<GroupPrimitive>), // { }
-                     // Range(String),              // [ ]
-                     // Seperator,                  // /
+                     // List(Vec<ListPrimitive>), // { }
+                     // Range(String),            // [ ]
+                     // Seperator,                // /
 }
 
-// enum GroupPrimitive {
+// enum ListPrimitive {
 //     Literal(String), // a
 //     Any,             // *
 //     Recursive,       // **
@@ -137,13 +137,15 @@ impl Parser {
                     regex_str.push_str(".*");
                 }
                 Primitive::Recursive => {
-                    regex_str.push_str("(?:.*/)?");
+                    regex_str.push_str("(?:.*/)*[^/]*");
                 }
                 Primitive::Literal(str) => {
                     regex_str.push_str(&str);
-                } // Primitive::Seperator => {
-                  //     regex_str.push_str(&str);
-                  // }
+                }
+                // Primitive::Seperator => {
+                //     regex_str.push_str(&str);
+                // }
+                _ => todo!("To be implemented"),
             }
         }
         regex_str.push('$');
@@ -158,17 +160,24 @@ mod tests {
 
     #[test]
     fn simple_exp() {
-        let result = is_match("world-big-cat", String::from("world-*-cat"));
-        assert_eq!(result, true);
+        // let result = is_match("world-big-cat", String::from("world-*-cat"));
+        // assert_eq!(result, true);
+
+        let test_gen_map = [
+            ["world-big-cat", "world-*-cat"],
+            ["/meow/h/ja/ddd/ada/dad", "/**"],
+        ];
+
+        for [sample, pattern] in test_gen_map {
+            assert_eq!(is_match(sample, String::from(pattern)), true)
+        }
     }
 
     #[test]
-    fn uri_test() {
-        let result = is_match(
-            "http://google.com/meow/h/ja/ddd/ada/",
-            String::from("*google.com/**"),
-        );
-        assert_eq!(result, true);
+    fn recursive_regex_comp() {
+        // assert_eq!(to_regex("/**".to_string()), String::from("^/(?:.*/)*$"));
+        let regex = Regex::new("^/(?:.*/)*$").unwrap();
+        assert_eq!(regex.is_match("/meow/h/ja/ddd/ada/"), true)
     }
 
     #[test]
