@@ -1,4 +1,4 @@
-use uri_globbing::{is_match, to_regex};
+use uri_globbing::{is_match, to_regex_str};
 
 #[test]
 fn simple_exp() {
@@ -17,28 +17,28 @@ fn simple_exp() {
 
 #[test]
 fn escape_char_test() {
-    assert_eq!(to_regex(r"meow\?"), String::from("^meow?$"));
+    assert_eq!(to_regex_str(r"meow\?"), String::from("^meow?$"));
 
     // assert_eq!("meow\\?".len(), 7)
 }
 
 #[test]
 fn test_range_parsing() {
-    assert_eq!(to_regex("[a-z]*"), String::from("^[a-z].*$"));
+    assert_eq!(to_regex_str("[a-z]*"), String::from("^[a-z].*$"));
 
-    assert_eq!(to_regex("[0-9]?"), String::from("^[0-9].$"));
+    assert_eq!(to_regex_str("[0-9]?"), String::from("^[0-9].$"));
 
-    assert_eq!(to_regex("file[abc].txt"), String::from("^file[abc].txt$"));
+    assert_eq!(to_regex_str("file[abc].txt"), String::from("^file[abc].txt$"));
 
     // Malformed range should panic
-    let result = std::panic::catch_unwind(|| to_regex("[a-z"));
+    let result = std::panic::catch_unwind(|| to_regex_str("[a-z"));
     assert!(result.is_err());
 }
 
 #[test]
 fn test_lists() {
     assert_eq!(
-        to_regex("{super,spider,iron}man"),
+        to_regex_str("{super,spider,iron}man"),
         "^(?:super|spider|iron)man$"
     );
     assert_eq!(is_match("superman", "{super,spider,iron}man$"), true)

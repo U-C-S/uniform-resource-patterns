@@ -17,6 +17,13 @@ impl Parser {
         }
     }
 
+    pub fn generate_ast(&mut self) -> &AST {
+        self.parse();
+        &self.ast
+    }
+}
+
+impl Parser {
     fn is_eol(&self) -> bool {
         self.pos.get() >= self.glob_pattern.len()
     }
@@ -62,14 +69,6 @@ impl Parser {
 
             self.advance();
         }
-    }
-
-    pub fn to_regex(&mut self) -> String {
-        // https://{meow,purr}.cat.com
-        // (meow|purr)\.cat\.com - valid regex
-        // let list_regex = Regex::new(r"\{(?<middle>.*)\}").unwrap();
-        self.parse();
-        self.regex_generator()
     }
 
     fn parse_literal(&mut self) {
@@ -145,40 +144,5 @@ impl Parser {
         } else {
             panic!("Malformed range: missing closing `]`");
         }
-    }
-
-    fn regex_generator(&self) -> String {
-        let mut regex_str = String::new();
-
-        regex_str.push('^');
-        for primitive in &self.ast {
-            match primitive {
-                Primitive::Single => {
-                    regex_str.push('.');
-                }
-                Primitive::Any => {
-                    regex_str.push_str(".*");
-                }
-                Primitive::Recursive => {
-                    regex_str.push_str("(?:.*/)*[^/]*");
-                }
-                Primitive::Literal(str) => {
-                    regex_str.push_str(&str);
-                }
-                Primitive::Range(range) => {
-                    regex_str.push('[');
-                    regex_str.push_str(range);
-                    regex_str.push(']');
-                }
-                Primitive::List(list) => {
-                    regex_str.push_str("(?:");
-                    regex_str.push_str(&list.join("|"));
-                    regex_str.push(')');
-                }
-            }
-        }
-        regex_str.push('$');
-
-        regex_str
     }
 }

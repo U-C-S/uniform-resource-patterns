@@ -1,17 +1,11 @@
 mod parser;
 mod primitives;
+mod regex_gen;
 
-use parser::Parser;
-use regex::Regex;
+use regex_gen::to_regex;
+pub use regex_gen::to_regex_str;
 
 pub fn is_match(test_string: &str, glob: &str) -> bool {
-    let mut parser = Parser::new(glob);
-    let regex_str = parser.to_regex();
-    let regex = Regex::new(&regex_str).unwrap();
+    let regex = to_regex(glob);
     regex.is_match(test_string)
-}
-
-pub fn to_regex(glob: &str) -> String {
-    let mut parser = Parser::new(glob);
-    parser.to_regex()
 }
