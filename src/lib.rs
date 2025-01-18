@@ -18,23 +18,16 @@ pub fn to_regex(glob: String) -> String {
     parser.to_regex()
 }
 
+type AST = Vec<Primitive>;
+
 enum Primitive {
     Literal(String), // a
     Any,             // *
     Recursive,       // **
     Single,          // ?
-                     // List(Vec<ListPrimitive>), // { }
-                     // Range(String),            // [ ]
-                     // Seperator,                // /
+    List(AST),       // { }
+    Range(String),   // [ ]
 }
-
-// enum ListPrimitive {
-//     Literal(String), // a
-//     Any,             // *
-//     Recursive,       // **
-//     Single,          // ?
-//     Seperator,       // /
-// }
 
 // struct Span {
 //     pub start: u32,
@@ -42,10 +35,9 @@ enum Primitive {
 // }
 
 struct Parser {
-    // start: Cell<usize>,
     current: Cell<usize>,
     source: String,
-    ast: Vec<Primitive>,
+    ast: AST,
 }
 
 impl Parser {
@@ -69,15 +61,11 @@ impl Parser {
         self.current.set(self.current.get() + 1);
     }
 
-    fn peek(&self) -> char {
-        self.source.chars().nth(self.current.get() + 1).unwrap()
+    fn peek(&self) -> Option<char> {
+        self.source.chars().nth(self.current.get() + 1)
     }
 
-    pub fn to_regex(&mut self) -> String {
-        // https://{meow,purr}.cat.com
-        // (meow|purr)\.cat\.com - valid regex
-        // let list_regex = Regex::new(r"\{(?<middle>.*)\}").unwrap();
-
+    fn parse(&mut self) {
         loop {
             if self.is_eol() {
                 break;
@@ -89,8 +77,9 @@ impl Parser {
                     self.parse_literal();
                 }
                 '{' => self.parse_group(),
+                '[' => self.parse_range(),
                 '*' => {
-                    if self.peek() == '*' {
+                    if self.peek() == Some('*') {
                         self.advance();
                         self.ast.push(Primitive::Recursive);
                     } else {
@@ -105,7 +94,13 @@ impl Parser {
 
             self.advance();
         }
+    }
 
+    pub fn to_regex(&mut self) -> String {
+        // https://{meow,purr}.cat.com
+        // (meow|purr)\.cat\.com - valid regex
+        // let list_regex = Regex::new(r"\{(?<middle>.*)\}").unwrap();
+        self.parse();
         self.regex_generator()
     }
 
@@ -119,6 +114,29 @@ impl Parser {
         } else {
             // otherwise, we just add the literal
             self.ast.push(Primitive::Literal(c.to_string()));
+        }
+    }
+
+    fn parse_range(&mut self) {
+        self.advance(); // Move past the `[` character
+
+        let mut range = String::new();
+        let mut is_valid = false;
+
+        while !self.is_eol() {
+            if let ']' = self.char() {
+                is_valid = true;
+                break;
+            } else {
+                range.push(self.char());
+            }
+            self.advance();
+        }
+
+        if is_valid {
+            self.ast.push(Primitive::Range(range));
+        } else {
+            panic!("Malformed range: missing closing `]`");
         }
     }
 
@@ -142,9 +160,11 @@ impl Parser {
                 Primitive::Literal(str) => {
                     regex_str.push_str(&str);
                 }
-                // Primitive::Seperator => {
-                //     regex_str.push_str(&str);
-                // }
+                Primitive::Range(range) => {
+                    regex_str.push('[');
+                    regex_str.push_str(range);
+                    regex_str.push(']');
+                }
                 _ => todo!("To be implemented"),
             }
         }
@@ -185,5 +205,21 @@ mod tests {
         assert_eq!(to_regex(r"meow\?".to_string()), String::from("^meow?$"));
 
         // assert_eq!("meow\\?".len(), 7)
+    }
+
+    #[test]
+    fn test_range_parsing() {
+        assert_eq!(to_regex("[a-z]*".to_string()), String::from("^[a-z].*$"));
+
+        assert_eq!(to_regex("[0-9]?".to_string()), String::from("^[0-9].$"));
+
+        assert_eq!(
+            to_regex("file[abc].txt".to_string()),
+            String::from("^file[abc].txt$")
+        );
+
+        // Malformed range should panic
+        let result = std::panic::catch_unwind(|| to_regex("[a-z".to_string()));
+        assert!(result.is_err());
     }
 }
