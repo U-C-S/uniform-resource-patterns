@@ -3,34 +3,34 @@ use std::cell::Cell;
 use crate::primitives::{Primitive, AST};
 
 pub struct Parser {
-    current: Cell<usize>,
-    source: String,
+    pos: Cell<usize>,
+    glob_pattern: String,
     ast: AST,
 }
 
 impl Parser {
     pub fn new(glob: &str) -> Parser {
         Parser {
-            source: glob.to_string(),
-            current: Cell::new(0),
+            glob_pattern: glob.to_string(),
+            pos: Cell::new(0),
             ast: vec![],
         }
     }
 
     fn is_eol(&self) -> bool {
-        self.current.get() >= self.source.len()
+        self.pos.get() >= self.glob_pattern.len()
     }
 
     fn char(&self) -> char {
-        self.source.chars().nth(self.current.get()).unwrap()
+        self.glob_pattern.chars().nth(self.pos.get()).unwrap()
     }
 
     fn advance(&self) {
-        self.current.set(self.current.get() + 1);
+        self.pos.set(self.pos.get() + 1);
     }
 
     fn peek(&self) -> Option<char> {
-        self.source.chars().nth(self.current.get() + 1)
+        self.glob_pattern.chars().nth(self.pos.get() + 1)
     }
 
     fn parse(&mut self) {
