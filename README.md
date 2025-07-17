@@ -1,4 +1,4 @@
-# Uri Globbing
+# uniform-resource-patterns
 
 Glob patterns, but for URI/URLs.
 
