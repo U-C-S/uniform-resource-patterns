@@ -33,6 +33,7 @@ fn regex_generator(ast: &AST) -> String {
                 regex_str.push_str(&list.join("|"));
                 regex_str.push(')');
             }
+            Primitive::Delimiter(_delimiter) => todo!(),
         }
     }
     regex_str.push('$');

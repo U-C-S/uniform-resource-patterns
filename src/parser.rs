@@ -1,6 +1,6 @@
 use std::cell::Cell;
 
-use crate::primitives::{Primitive, AST};
+use crate::primitives::{Delimiter, Primitive, AST};
 
 pub struct Parser {
     pos: Cell<usize>,
@@ -40,6 +40,16 @@ impl Parser {
         self.glob_pattern.chars().nth(self.pos.get() + 1)
     }
 
+    fn peek_multiple(&self, n: usize) -> Option<&str> {
+        let start = self.pos.get() + 1;
+        let end = start + n;
+        if end <= self.glob_pattern.len() {
+            Some(&self.glob_pattern[start..end])
+        } else {
+            None
+        }
+    }
+
     fn parse(&mut self) {
         loop {
             if self.is_eol() {
@@ -49,7 +59,11 @@ impl Parser {
             match self.char() {
                 '\\' => {
                     self.advance();
-                    self.parse_literal();
+                    if self.char() == '?' {
+                        self.ast.push(Primitive::Delimiter(Delimiter::PRE_QUERY));
+                    } else {
+                        self.parse_literal();
+                    }
                 }
                 '{' => self.parse_list(),
                 '[' => self.parse_range(),
@@ -64,6 +78,20 @@ impl Parser {
                 '?' => {
                     self.ast.push(Primitive::Single);
                 }
+                ':' => {
+                    if self.peek_multiple(2) == Some("//") {
+                        self.ast
+                            .push(Primitive::Delimiter(Delimiter::SCHEME_AUTHORITY));
+                        self.advance();
+                        self.advance();
+                    } else {
+                        self.ast.push(Primitive::Delimiter(Delimiter::SCHEME_PATH));
+                    }
+                }
+                '/' => self.ast.push(Primitive::Delimiter(Delimiter::PATH)),
+                '&' => self.ast.push(Primitive::Delimiter(Delimiter::QUERY)),
+                '#' => self.ast.push(Primitive::Delimiter(Delimiter::PRE_FRAGMENT)),
+
                 _ => self.parse_literal(),
             }
 
@@ -144,5 +172,69 @@ impl Parser {
         } else {
             panic!("Malformed range: missing closing `]`");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::primitives::{Delimiter, Primitive};
+
+    macro_rules! assert_ast_eq {
+        ($pattern:expr, $expected:expr) => {{
+            let mut parser = Parser::new($pattern);
+            let ast = parser.generate_ast();
+            assert_eq!(&$expected, ast, "\nAST mismatch for pattern: {}", $pattern);
+        }};
+    }
+
+    #[test]
+    fn parses_basic_uri() {
+        assert_ast_eq!(
+            "http://example.com/{a,b,c}/path\\?query=value#fragment",
+            vec![
+                Primitive::Literal("http".into()),
+                Primitive::Delimiter(Delimiter::SCHEME_AUTHORITY),
+                Primitive::Literal("example.com".into()),
+                Primitive::Delimiter(Delimiter::PATH),
+                Primitive::List(vec!["a".into(), "b".into(), "c".into()]),
+                Primitive::Delimiter(Delimiter::PATH),
+                Primitive::Literal("path".into()),
+                Primitive::Delimiter(Delimiter::PRE_QUERY),
+                Primitive::Literal("query=value".into()),
+                Primitive::Delimiter(Delimiter::PRE_FRAGMENT),
+                Primitive::Literal("fragment".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn parses_wildcards_and_ranges() {
+        assert_ast_eq!(
+            "https://*/**/[a-z]\\?file.txt",
+            vec![
+                Primitive::Literal("https".into()),
+                Primitive::Delimiter(Delimiter::SCHEME_AUTHORITY),
+                Primitive::Any,
+                Primitive::Delimiter(Delimiter::PATH),
+                Primitive::Recursive,
+                Primitive::Delimiter(Delimiter::PATH),
+                Primitive::Range("a-z".into()),
+                Primitive::Delimiter(Delimiter::PRE_QUERY),
+                Primitive::Literal("file.txt".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_no_path() {
+        assert_ast_eq!(
+            "{http,https}://example.com",
+            vec![
+                Primitive::List(vec!["http".into(), "https".into()]),
+                Primitive::Delimiter(Delimiter::SCHEME_AUTHORITY),
+                Primitive::Literal("example.com".into()),
+            ]
+        );
     }
 }
