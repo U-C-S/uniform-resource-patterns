@@ -1,10 +1,10 @@
 [package]
-name = "uri_globbing"
+name = "uniform-resource-patterns"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/U-C-S/uri-globbing"
-description = "Glob pattern matching for URIs"
+repository = "https://github.com/U-C-S/uniform-resource-patterns"
+description = "Glob-like pattern matching for URLs"
 
 [dependencies]
 regex = "1"
