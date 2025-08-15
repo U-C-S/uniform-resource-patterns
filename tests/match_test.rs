@@ -1,4 +1,4 @@
-use uri_globbing::{is_match, to_regex_str};
+use uniform_resource_patterns::{is_match, to_regex_str};
 
 #[test]
 fn simple_exp() {
@@ -28,7 +28,10 @@ fn test_range_parsing() {
 
     assert_eq!(to_regex_str("[0-9]?"), String::from("^[0-9].$"));
 
-    assert_eq!(to_regex_str("file[abc].txt"), String::from("^file[abc].txt$"));
+    assert_eq!(
+        to_regex_str("file[abc].txt"),
+        String::from("^file[abc].txt$")
+    );
 
     // Malformed range should panic
     let result = std::panic::catch_unwind(|| to_regex_str("[a-z"));

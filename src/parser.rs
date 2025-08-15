@@ -2,6 +2,7 @@ use std::cell::Cell;
 
 use crate::primitives::{Delimiter, Primitive, AST};
 
+#[derive(Debug)]
 pub struct Parser {
     pos: Cell<usize>,
     glob_pattern: String,
@@ -17,8 +18,11 @@ impl Parser {
         }
     }
 
-    pub fn generate_ast(&mut self) -> &AST {
+    pub fn generate_ast(&mut self) {
         self.parse();
+    }
+
+    pub fn ast(&self) -> &AST {
         &self.ast
     }
 }
@@ -138,7 +142,7 @@ impl Parser {
     fn parse_list(&mut self) {
         self.advance();
 
-        let mut list: Vec<String> = vec![];
+        let mut patterns_list: Vec<String> = vec![];
         let mut is_valid = false;
         let mut current_item = String::new();
 
@@ -150,13 +154,13 @@ impl Parser {
             match self.char() {
                 ',' => {
                     if !current_item.is_empty() {
-                        list.push(current_item);
+                        patterns_list.push(current_item);
                         current_item = String::new();
                     }
                 }
                 '}' => {
                     if !current_item.is_empty() {
-                        list.push(current_item);
+                        patterns_list.push(current_item);
                     }
                     is_valid = true;
                     break;
@@ -168,7 +172,15 @@ impl Parser {
         }
 
         if is_valid {
-            self.ast.push(Primitive::List(list));
+            let processed_list: Vec<AST> = patterns_list
+                .into_iter()
+                .map(|item| {
+                    let mut x = Parser::new(&item);
+                    x.generate_ast();
+                    x.ast
+                })
+                .collect();
+            self.ast.push(Primitive::List(processed_list));
         } else {
             panic!("Malformed range: missing closing `]`");
         }
@@ -183,7 +195,8 @@ mod tests {
     macro_rules! assert_ast_eq {
         ($pattern:expr, $expected:expr) => {{
             let mut parser = Parser::new($pattern);
-            let ast = parser.generate_ast();
+            parser.generate_ast();
+            let ast = parser.ast();
             assert_eq!(&$expected, ast, "\nAST mismatch for pattern: {}", $pattern);
         }};
     }
@@ -197,7 +210,11 @@ mod tests {
                 Primitive::Delimiter(Delimiter::SCHEME_AUTHORITY),
                 Primitive::Literal("example.com".into()),
                 Primitive::Delimiter(Delimiter::PATH),
-                Primitive::List(vec!["a".into(), "b".into(), "c".into()]),
+                Primitive::List(vec![
+                    vec![Primitive::Literal("a".into())],
+                    vec![Primitive::Literal("b".into())],
+                    vec![Primitive::Literal("c".into())]
+                ]),
                 Primitive::Delimiter(Delimiter::PATH),
                 Primitive::Literal("path".into()),
                 Primitive::Delimiter(Delimiter::PRE_QUERY),
@@ -231,7 +248,10 @@ mod tests {
         assert_ast_eq!(
             "{http,https}://example.com",
             vec![
-                Primitive::List(vec!["http".into(), "https".into()]),
+                Primitive::List(vec![
+                    vec![Primitive::Literal("http".into())],
+                    vec![Primitive::Literal("https".into())]
+                ]),
                 Primitive::Delimiter(Delimiter::SCHEME_AUTHORITY),
                 Primitive::Literal("example.com".into()),
             ]

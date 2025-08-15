@@ -1,17 +1,17 @@
 pub type AST = Vec<Primitive>;
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Primitive {
-    Literal(String),   // a
-    Any,               // *
-    Recursive,         // **
-    Single,            // ?
-    List(Vec<String>), // {a,b,c} allow list of primitives
-    Range(String),     // [ ]
+    Literal(String), // a
+    Any,             // *
+    Recursive,       // **
+    Single,          // ?
+    List(Vec<AST>),  // {a,b,c} allow list of primitives
+    Range(String),   // [ ]
     Delimiter(Delimiter),
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Debug, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
 pub enum Delimiter {
     /// Delimiter between scheme and Path, i.e. `:` (Colon)
