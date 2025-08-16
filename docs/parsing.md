@@ -9,6 +9,13 @@ authority   = [userinfo "@"] host [":" port]
 [http,https]://*.google.com/meow/*?
 ```
 
+### Valid Characters in URL
+
+```
+A-Z, a-z, 0-9,
+-, ., _, ~, :, /, ?, #, [, ], @, !, $, &, ', (, ), *, +, ,, ;, %, =
+```
+
 # Pattern Matching
 
 Standard pattern matching applies in `scheme`, `authority` (host and port), `path`, `query` and `fragment`. `Path` additionally supports `**` recursive primitive.
