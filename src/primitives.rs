@@ -11,7 +11,7 @@ pub enum Primitive {
     Delimiter(Delimiter),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[allow(non_camel_case_types)]
 pub enum Delimiter {
     /// Delimiter between scheme and Path, i.e. `:` (Colon)

@@ -7,6 +7,7 @@ pub struct Parser {
     pos: Cell<usize>,
     glob_pattern: String,
     ast: AST,
+    delimiter_order: Vec<Delimiter>,
 }
 
 impl Parser {
@@ -15,6 +16,7 @@ impl Parser {
             glob_pattern: glob.to_string(),
             pos: Cell::new(0),
             ast: vec![],
+            delimiter_order: vec![],
         }
     }
 
@@ -24,6 +26,10 @@ impl Parser {
 
     pub fn ast(&self) -> &AST {
         &self.ast
+    }
+
+    pub fn delimiter_order(&self) -> &[Delimiter] {
+        &self.delimiter_order
     }
 }
 
@@ -64,7 +70,7 @@ impl Parser {
                 '\\' => {
                     self.advance();
                     if self.char() == '?' {
-                        self.ast.push(Primitive::Delimiter(Delimiter::PRE_QUERY));
+                        self.push_delimiter(Delimiter::PRE_QUERY);
                     } else {
                         self.parse_literal();
                     }
@@ -84,23 +90,26 @@ impl Parser {
                 }
                 ':' => {
                     if self.peek_multiple(2) == Some("//") {
-                        self.ast
-                            .push(Primitive::Delimiter(Delimiter::SCHEME_AUTHORITY));
+                        self.push_delimiter(Delimiter::SCHEME_AUTHORITY);
                         self.advance();
                         self.advance();
                     } else {
-                        self.ast.push(Primitive::Delimiter(Delimiter::SCHEME_PATH));
+                        self.push_delimiter(Delimiter::SCHEME_PATH);
                     }
                 }
-                '/' => self.ast.push(Primitive::Delimiter(Delimiter::PATH)),
-                '&' => self.ast.push(Primitive::Delimiter(Delimiter::QUERY)),
-                '#' => self.ast.push(Primitive::Delimiter(Delimiter::PRE_FRAGMENT)),
-
+                '/' => self.push_delimiter(Delimiter::PATH),
+                '&' => self.push_delimiter(Delimiter::QUERY),
+                '#' => self.push_delimiter(Delimiter::PRE_FRAGMENT),
                 _ => self.parse_literal(),
             }
 
             self.advance();
         }
+    }
+
+    fn push_delimiter(&mut self, delimiter: Delimiter) {
+        self.delimiter_order.push(delimiter.clone());
+        self.ast.push(Primitive::Delimiter(delimiter));
     }
 
     fn parse_literal(&mut self) {

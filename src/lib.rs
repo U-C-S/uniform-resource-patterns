@@ -1,6 +1,7 @@
 mod parser;
 mod primitives;
 mod regex_gen;
+mod validate;
 
 use regex_gen::to_regex;
 pub use regex_gen::to_regex_str;
