@@ -4,8 +4,12 @@ use crate::primitives::{Delimiter, Primitive, AST};
 
 #[derive(Debug)]
 pub struct Parser {
-    pos: Cell<usize>,
     glob_pattern: String,
+
+    // State
+    pos: Cell<usize>,
+
+    // Outputs
     ast: AST,
     delimiter_order: Vec<Delimiter>,
 }
@@ -26,10 +30,6 @@ impl Parser {
 
     pub fn ast(&self) -> &AST {
         &self.ast
-    }
-
-    pub fn delimiter_order(&self) -> &[Delimiter] {
-        &self.delimiter_order
     }
 }
 

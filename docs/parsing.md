@@ -30,5 +30,3 @@ Standard pattern matching applies in `scheme`, `authority` (host and port), `pat
 - {$:http,https}\*.google.com
 
 [servo url crate](https://docs.rs/url/latest/url/)`
-
-:

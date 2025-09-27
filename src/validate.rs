@@ -43,18 +43,7 @@ fn validate_delimiter_order(demlimiter_order: &Vec<Delimiter>) -> Result<(), &'s
                     return Err("Query delimiters must follow path delimiter.");
                 }
             }
-            Delimiter::PRE_FRAGMENT => {
-                if ![
-                    Delimiter::SCHEME_PATH,
-                    Delimiter::SCHEME_AUTHORITY,
-                    Delimiter::PATH,
-                    Delimiter::PRE_QUERY,
-                ]
-                .contains(last_delimiter.unwrap())
-                {
-                    return Err("Fragment delimiter must follow path or query delimiters.");
-                }
-            }
+            Delimiter::PRE_FRAGMENT => (),
         }
         last_delimiter = Some(delimiter);
     }
